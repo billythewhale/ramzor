@@ -8,12 +8,13 @@ app.get('/healthcheck', (req, res) => {
 });
 
 const router = express.Router();
+router.use(express.json());
 
 const rateLimitConfig = {
   quota: 1,
   window: 1,
-  params: ['header.x-tw-klaviyo-account'],
-  match: [{ 'query.additional-fields': 'addtnlfields' }],
+  params: ['headers.x-tw-klaviyo-account'],
+  match: ['query.additional-fields'],
 };
 
 router.use(

@@ -1,14 +1,15 @@
 import {
   Limit,
-  PermissionRequest,
+  Policy,
   RequestConfig,
   RequestMatcher,
+  PermissionRequest,
   ZoneDescriber,
   ZonesConfig,
 } from '../types';
 import { matchRequestToConfig } from './matchRequest';
 
-export function getZoneIdFromConfig(zoneFor: ZoneDescriber): string {
+export function getZoneId(zoneFor: ZoneDescriber): string {
   let key = zoneFor.provider;
   if (zoneFor.apiName) {
     key += `:${zoneFor.apiName}`;
@@ -46,12 +47,34 @@ export function getZoneInfoFromReq(
   const zones = matchRequestToConfig(req, conf);
   return zones
     .map((zone) =>
-      zone.limits.map((limit) => ({
-        zoneId: getZoneIdFromConfig(zone.for),
-        ...(limit.limitBy.length && { query: getReqQuery(req, limit) }),
-      }))
+      zone.limits
+        .filter((limit) => doesLimitApply(limit, req))
+        .map((limit) =>
+          limit.policies.map((policy) => ({
+            zoneKey: [
+              getZoneId(zone.for),
+              getReqId(limit, req),
+              getPolicyId(limit, policy),
+            ].join('::'),
+            policy,
+          }))
+        )
     )
-    .flat();
+    .flat(2);
+}
+
+function doesLimitApply(limit: Limit, req: RequestConfig): boolean {
+  return limit.limitBy.every((limitBy) => !!get(req, limitBy));
+}
+
+function getReqId(limit: Limit, req: RequestConfig): string {
+  return limit.limitBy
+    .map((limitBy) => limitBy + '=' + get(req, limitBy))
+    .join('&');
+}
+
+function getPolicyId(limit: Limit, policy: Policy): string {
+  return `${policy.maxCalls};w=${policy.window}`;
 }
 
 function get(obj: any, path: string): string {
@@ -64,11 +87,4 @@ function get(obj: any, path: string): string {
       return o[p];
     }, obj)
     .toString();
-}
-
-function getReqQuery(req: RequestConfig, limit: Limit): Partial<RequestConfig> {
-  return limit.limitBy.reduce((acc, limitBy) => {
-    acc[limitBy] = get(req, limitBy);
-    return acc;
-  }, {});
 }

@@ -25,15 +25,19 @@ const importDataRequests: RequestConfig[] = shopDocs
   .flat();
 
 export async function runClient() {
-  const results = await throttleRequests(importDataRequests.slice(0, 10));
-  console.log(results);
+  const results = await throttleRequests(importDataRequests);
+  if (results.some((r) => r !== 200)) {
+    console.error('some requests failed!');
+  } else {
+    console.log('all requests succeeded!');
+  }
 }
 
 function getTestRequests(shopData: any): RequestConfig[] {
   return [
-    // ...getFacebookReqs(shopData),
+    ...getFacebookReqs(shopData),
     ...getGoogleReqs(shopData),
-    // ...getKlaviyoReqs(shopData),
+    ...getKlaviyoReqs(shopData),
   ].map((req) => ({
     ...req,
     ip: process.env.HOST_IP || '',
@@ -60,7 +64,31 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
       method: 'GET',
     },
     {
+      path: '/analytics/endpoint1',
+      apiName: 'ads-analytics',
+      query: {
+        accountId: shopData['facebook-ads'].accountId,
+      },
+      method: 'GET',
+    },
+    {
+      path: '/analytics/endpoint2',
+      apiName: 'ads-analytics',
+      query: {
+        accountId: shopData['facebook-ads'].accountId,
+      },
+      method: 'GET',
+    },
+    {
       path: '/manage/endpoint1',
+      apiName: 'ads-management',
+      body: {
+        accountId: shopData['facebook-ads'].accountId,
+      },
+      method: 'POST',
+    },
+    {
+      path: '/manage/endpoint2',
       apiName: 'ads-management',
       body: {
         accountId: shopData['facebook-ads'].accountId,
@@ -107,12 +135,12 @@ function getKlaviyoReqs(shopData: any): RequestConfig[] {
   return [
     {
       path: '/api/profiles',
-    },
-    {
-      path: '/api/profiles',
       query: {
         'additional-fields': 'email,name,phone',
       },
+    },
+    {
+      path: '/api/profiles',
     },
     {
       path: `/api/accounts/${shopData.klaviyo.accountId}/info`,
@@ -141,6 +169,7 @@ function getKlaviyoReqs(shopData: any): RequestConfig[] {
 
 if (require.main === module) {
   runClient().catch((err) => {
+    process.stdout.write('\n');
     console.error(err);
     process.exit(1);
   });

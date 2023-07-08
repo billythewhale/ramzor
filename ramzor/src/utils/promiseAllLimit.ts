@@ -1,3 +1,4 @@
+// limit number of promises executed in parallel
 export async function promiseAllLimit(
   inputs: any[],
   limit: number,

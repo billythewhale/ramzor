@@ -4,7 +4,7 @@ type RateLimitConfig = {
   quota: number;
   window: number;
   params?: string[];
-  match?: { [key: string]: string }[];
+  match?: string[];
 }[];
 
 const rateLimitStore = new Map<string, { count: number; end: number }>();
@@ -38,11 +38,11 @@ export function createRateLimitMiddlewares(
         next: NextFunction
       ) {
         const { quota, window, params = [], match = [] } = conf;
-        for (const [k, val] of Object.entries(match)) {
-          if (get(req, k) !== val) {
+        match.forEach((path) => {
+          if (!get(req, path)) {
             return next();
           }
-        }
+        });
         const now = Math.ceil(clock.monotonic() / 1000);
         let key = `${name}-${window}`;
         params.forEach((param) => {

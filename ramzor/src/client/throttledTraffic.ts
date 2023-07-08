@@ -5,6 +5,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type {
   Limit,
   PermissionRequest,
+  PermissionResponse,
   RequestConfig,
   Zone,
   ZonesConfig,
@@ -13,74 +14,103 @@ import { getZoneInfoFromReq } from '../utils/getZoneInfo';
 import zonesConfig from '../config';
 import { makeAxiosReq } from '../utils/makeAxiosReq';
 import { promiseAllLimit } from '../utils/promiseAllLimit';
+import { monotonic } from '../utils/clock';
 
 let ramzorClient: AxiosInstance = axios.create({
   baseURL: process.env.RAMZOR_URL || 'http://localhost:3003',
   method: 'GET',
-  validateStatus: (status) => [200, 429].includes(status),
+  validateStatus: (status) => [200, 429].includes(status), // ramzor returns 429 when rate is too hot
 });
+
+let totalReqs = 0;
+let attemptedReqs = 0;
+let successReqs = 0;
+let waitingReqs = 0;
+let now = monotonic();
+let running = false;
 
 export async function throttleRequests(
   reqs: RequestConfig[]
 ): Promise<(any | string)[]> {
-  return await promiseAllLimit(
-    reqs,
-    20,
-    (r) =>
-      throttleRequest(r)
+  totalReqs += reqs.length;
+  running = true;
+  logResults();
+  const results = await Promise.all(
+    reqs.map(async (r) => {
+      await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 300)));
+      return await throttleRequest(r)
         .then((res) => res.status)
         .catch((err) => {
           throw err;
-        }),
-    (err) => {
-      throw err;
-    }
+        });
+    })
   );
+  running = false;
+  return results;
 }
 
 async function throttleRequest(req: RequestConfig): Promise<AxiosResponse> {
-  const permissions = getZoneInfoFromReq(req, zonesConfig);
-  console.log(`${req.url}/${req.path}: `, permissions);
+  attemptedReqs++;
+  const permissions: PermissionRequest[] = getZoneInfoFromReq(req, zonesConfig);
   let n = 0;
+  let wait = 0;
   await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 300)));
-  while (!(await askPermission(permissions))) {
+  while (true) {
+    waitingReqs++;
+    const { allowed, retryAfter } = await askPermission(permissions);
+    if (1) {
+      successReqs++;
+      waitingReqs--;
+      break;
+    }
     await new Promise((r) => {
       // exponential backoff from 100ms up to 5 min
       // TODO: use the retry-after header
-      let wait =
-        Math.min(Math.pow(2, n++), 3000) * 100 +
+      wait =
+        (retryAfter !== undefined
+          ? +retryAfter * 1000
+          : Math.min(Math.pow(2, n++), 3000) * 100) +
         Math.floor(Math.random() * 300);
       setTimeout(r, wait);
-      console.log(`waiting ${wait}ms for ${req.url}`);
     });
+    waitingReqs--;
   }
-  console.log(`${req.url}/${req.path}: sending`);
   const axiosConfig: AxiosRequestConfig = makeAxiosReq(req);
   const response = await axios.request(axiosConfig);
-  console.log(`${req.url}: ${response.status}`);
   return response;
 }
 
-async function askPermission(permissions: PermissionRequest[]) {
-  try {
-    const statuses = await Promise.all(
-      permissions.map(async ({ zoneId, query }) => {
-        // ramzor returns 429 if not allowed, ramzorClient will throw
-        try {
-          const resp = await ramzorClient.get(`/${zoneId}`, { params: query });
-          if (resp.status === 429) {
-            return false;
-          }
-          return true;
-        } catch (err) {
-          console.log('got error', err);
-          throw err;
-        }
-      })
-    );
-    return statuses.every((s) => !!s);
-  } catch (err) {
-    console.log('rethrowing');
-    throw err;
+async function askPermission(
+  permissions: PermissionRequest[]
+): Promise<PermissionResponse> {
+  const resp = await ramzorClient.post(`/check`, { permissions });
+  if (resp.status === 429) {
+    return { allowed: false, retryAfter: resp.headers['retry-after'] };
   }
+  return { allowed: true };
+}
+
+async function logResults() {
+  while (running) {
+    const elapsed = Math.floor((monotonic() - now) / 1000);
+    process.stdout.write(
+      `total: ${totalReqs}, attempted: ${attemptedReqs}, success: ${successReqs}, waiting: ${waitingReqs}, time: ${toTimeString(
+        elapsed
+      )}                                                  `
+    );
+    process.stdout.write('\r');
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  process.stdout.write('\n');
+}
+
+function toTimeString(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const hrs = hours.toString().padStart(2, '0');
+  const minutes = Math.floor((seconds - hours * 3600) / 60);
+  const mins = minutes.toString().padStart(2, '0');
+  const secs = (seconds - hours * 3600 - minutes * 60)
+    .toString()
+    .padStart(2, '0');
+  return `${hrs}:${mins}:${secs}`;
 }

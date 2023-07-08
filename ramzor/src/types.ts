@@ -26,11 +26,6 @@ export type RequestConfig = {
   method?: string;
 };
 
-export type PermissionRequest = {
-  zoneId: string;
-  query: Partial<RequestConfig>;
-};
-
 /* Zone id gets built from zone describer:
  * {
  *   provider: 'facebook-ads',
@@ -67,6 +62,16 @@ export type Policy = {
   window: number; // in SECONDS
   maxCalls: number; // max number of requests in the window
   description: string;
+};
+
+export type PermissionRequest = {
+  zoneKey: string;
+  policy: Policy;
+};
+
+export type PermissionResponse = {
+  allowed: boolean;
+  retryAfter?: string;
 };
 
 export type ZonesConfig = Zone[];
