@@ -21,9 +21,9 @@ const zones: ZonesConfig = [
         limitBy: ['ip'],
         policies: [
           {
-            window: 10,
-            maxCalls: 5,
-            description: '500 calls/min per IP',
+            window: 60,
+            maxCalls: 50,
+            description: '50 calls/min per IP',
           },
         ],
       },
