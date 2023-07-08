@@ -3,7 +3,7 @@ import { throttleRequests } from './throttledTraffic';
 import type { RequestConfig } from '../types';
 
 const shops = Array.from(
-  { length: 100 },
+  { length: 1000 },
   (_, i) => `shop${i + 1}.myshopify.com`
 );
 
@@ -36,8 +36,8 @@ export async function runClient() {
 function getTestRequests(shopData: any): RequestConfig[] {
   return [
     ...getFacebookReqs(shopData),
-    // ...getGoogleReqs(shopData),
-    // ...getKlaviyoReqs(shopData),
+    ...getGoogleReqs(shopData),
+    ...getKlaviyoReqs(shopData),
   ].map((req) => ({
     ...req,
     ip: process.env.HOST_IP || '',
@@ -49,7 +49,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
   return [
     {
       path: '/analytics/endpoint1',
-      apiName: 'ads-analytics',
+      apiName: 'ads_analytics',
       query: {
         accountId: shopData['facebook-ads'].accountId,
       },
@@ -57,7 +57,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
     },
     {
       path: '/analytics/endpoint2',
-      apiName: 'ads-analytics',
+      apiName: 'ads_analytics',
       query: {
         accountId: shopData['facebook-ads'].accountId,
       },
@@ -65,7 +65,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
     },
     {
       path: '/analytics/endpoint1',
-      apiName: 'ads-analytics',
+      apiName: 'ads_analytics',
       query: {
         accountId: shopData['facebook-ads'].accountId,
       },
@@ -73,7 +73,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
     },
     {
       path: '/analytics/endpoint2',
-      apiName: 'ads-analytics',
+      apiName: 'ads_analytics',
       query: {
         accountId: shopData['facebook-ads'].accountId,
       },
@@ -81,7 +81,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
     },
     {
       path: '/manage/endpoint1',
-      apiName: 'ads-management',
+      apiName: 'ads_management',
       body: {
         accountId: shopData['facebook-ads'].accountId,
       },
@@ -89,7 +89,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
     },
     {
       path: '/manage/endpoint2',
-      apiName: 'ads-management',
+      apiName: 'ads_management',
       body: {
         accountId: shopData['facebook-ads'].accountId,
       },
@@ -97,7 +97,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
     },
     {
       path: '/manage/endpoint2',
-      apiName: 'ads-management',
+      apiName: 'ads_management',
       body: {
         accountId: shopData['facebook-ads'].accountId,
       },

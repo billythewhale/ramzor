@@ -14,12 +14,13 @@ const rateLimitConfig = {
   quota: 1,
   window: 1,
   params: ['headers.x-tw-klaviyo-account'],
-  match: ['query.additional-fields'],
+  match: 'query.additional-fields',
 };
 
 router.use(
   ...createRateLimitMiddlewares('global', [
-    { quota: 10, window: 1, params: ['headers.x-tw-klaviyo-account'] },
+    { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
+    { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
   ])
 );
 
@@ -30,13 +31,27 @@ router.use(
   ])
 );
 
-router.get('/profiles', (req, res) => {
-  res.send('OK');
-});
+router.get(
+  '/profiles',
+  ...createRateLimitMiddlewares('profiles', [
+    { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
+    { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
+  ]),
+  (req, res) => {
+    res.send('OK');
+  }
+);
 
-router.get('/accounts/:id/info', (req, res) => {
-  res.send(req.params.id);
-});
+router.get(
+  '/accounts/:id/info',
+  ...createRateLimitMiddlewares('accounts', [
+    { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
+    { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
+  ]),
+  (req, res) => {
+    res.send(req.params.id);
+  }
+);
 
 app.use('/api', router);
 

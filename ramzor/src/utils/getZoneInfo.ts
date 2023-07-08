@@ -47,24 +47,18 @@ export function getZoneInfoFromReq(
   const zones = matchRequestToConfig(req, conf);
   return zones
     .map((zone) =>
-      zone.limits
-        .filter((limit) => doesLimitApply(limit, req))
-        .map((limit) =>
-          limit.policies.map((policy) => ({
-            zoneKey: [
-              getZoneId(zone.for),
-              getReqId(limit, req),
-              getPolicyId(limit, policy),
-            ].join('::'),
-            policy,
-          }))
-        )
+      zone.limits.map((limit) =>
+        limit.policies.map((policy) => ({
+          zoneKey: [
+            getZoneId(zone.for),
+            getReqId(limit, req),
+            getPolicyId(limit, policy),
+          ].join('::'),
+          policy,
+        }))
+      )
     )
     .flat(2);
-}
-
-function doesLimitApply(limit: Limit, req: RequestConfig): boolean {
-  return limit.limitBy.every((limitBy) => !!get(req, limitBy));
 }
 
 function getReqId(limit: Limit, req: RequestConfig): string {

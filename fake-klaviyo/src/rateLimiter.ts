@@ -4,7 +4,7 @@ type RateLimitConfig = {
   quota: number;
   window: number;
   params?: string[];
-  match?: string[];
+  match?: string;
 }[];
 
 const rateLimitStore = new Map<string, { count: number; end: number }>();
@@ -37,22 +37,20 @@ export function createRateLimitMiddlewares(
         res: Response,
         next: NextFunction
       ) {
-        const { quota, window, params = [], match = [] } = conf;
-        match.forEach((path) => {
-          if (!get(req, path)) {
-            return next();
-          }
-        });
+        const { quota, window, params = [], match } = conf;
+        if (match && !get(req, match)) {
+          return next();
+        }
         const now = Math.ceil(clock.monotonic() / 1000);
-        let key = `${name}-${window}`;
+        let key = `${name}-${quota}-${window}`;
         params.forEach((param) => {
           if (!get(req, param)) {
             throw new Error(`Missing required request property: ${param}`);
           }
           key += `-${get(req, param)}`;
         });
-        for (const [k, val] of Object.entries(match)) {
-          key += `-${val}`;
+        if (match) {
+          key += `-${match}`;
         }
         if (!rateLimitStore.has(key)) {
           rateLimitStore.set(key, { count: 0, end: now + window });
@@ -61,17 +59,13 @@ export function createRateLimitMiddlewares(
           }, window * 1000);
         }
         if (++rateLimitStore.get(key).count > quota) {
-          console.log(req.path + ' rate limit exceeded');
-          return res
+          console.log('Rate limit exceeded', key, req.path);
+          res
             .status(429)
             .header('Retry-After', `${+rateLimitStore.get(key).end - now + 1}`)
             .send('Too many requests');
+          return;
         }
-        const msg =
-          `limit=${quota}, ` +
-          `remaining=${quota - rateLimitStore.get(key).count}, ` +
-          `reset=${rateLimitStore.get(key).end - now + 1}`;
-        console.log(req.path + ' rate limit: ' + msg);
         next();
       }
   );

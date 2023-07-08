@@ -75,6 +75,9 @@ export class Stoplight {
     policy,
   }: PermissionRequest): Promise<void> {
     const count = await this.redis.incr(zoneKey);
+    if (count > policy.maxCalls) {
+      throw new Error('Too many calls: ' + zoneKey);
+    }
     console.log(
       `[ ${count || 0} / ${policy.maxCalls} ] in ${policy.window} sec`,
       zoneKey

@@ -35,16 +35,19 @@ export async function throttleRequests(
   totalReqs += reqs.length;
   running = true;
   logResults();
-  const results = await Promise.all(
-    reqs.map(async (r) => {
-      await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 300)));
-      return await throttleRequest(r)
-        .then((res) => res.status)
+  let promises: Promise<number>[] = [];
+  let results: number[] = [];
+  for (let req of reqs) {
+    await new Promise((r) => setTimeout(r, 25)); // wait 25ms between requests
+    promises.push(
+      throttleRequest(req)
+        .then((res) => results.push(res.status))
         .catch((err) => {
           throw err;
-        });
-    })
-  );
+        })
+    );
+  }
+  await Promise.all(promises);
   running = false;
   return results;
 }
@@ -54,7 +57,7 @@ async function throttleRequest(req: RequestConfig): Promise<AxiosResponse> {
   const permissions: PermissionRequest[] = getZoneInfoFromReq(req, zonesConfig);
   let n = 0;
   let wait = 0;
-  await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 300)));
+  await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 300))); // jittter
   while (true) {
     waitingReqs++;
     const { allowed, retryAfter } = await askPermission(permissions);
@@ -87,7 +90,6 @@ async function askPermission(
   if (resp.status === 429) {
     return { allowed: false, retryAfter: resp.headers['retry-after'] };
   }
-  console.log(resp.status);
   return { allowed: true };
 }
 
