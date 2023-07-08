@@ -12,7 +12,7 @@ async function run() {
   await setupStoplight();
   const app = getApp();
   console.log('Found ' + config.length + ' zones');
-  console.log(stoplight.zoneKeys);
+  console.log(stoplight.zoneIds);
   const port = process.env.SERVER_PORT || 3003;
   server = app.listen(port, () => {
     console.log(`Ramzor listening on port ${port}`);
@@ -33,6 +33,7 @@ async function stop() {
 async function setupStoplight() {
   stoplight = new Stoplight();
   await stoplight.init(config);
+  await stoplight.dangerouslyResetRedis();
 }
 
 function getApp() {
@@ -43,7 +44,12 @@ function getApp() {
       res.sendStatus(500);
       return;
     }
-    if (await stoplight.checkRequest(req.params.zoneId)) {
+    if (
+      await stoplight.checkRequest({
+        zoneId: req.params.zoneId,
+        query: req.query,
+      })
+    ) {
       res.sendStatus(200);
       console.log(req.params.zoneId, 'allowed');
     } else {

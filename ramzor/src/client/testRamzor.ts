@@ -98,6 +98,7 @@ function getGoogleReqs(shopData: any): RequestConfig[] {
     query: {
       accountId: shopData['google-ads'].accountId,
     },
+    ip: process.env.HOST_IP || '',
   }));
 }
 

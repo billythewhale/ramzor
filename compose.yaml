@@ -11,10 +11,13 @@ services:
     container_name: fake-facebook
     environment:
       SERVER_PORT: 3001
+      DEBUG_PORT: 9229
     ports:
       - '3001:3001'
+      - '9229:9229'
     expose:
       - '3001'
+      - '9229'
     command: npm run dev
   fake-google:
     build:
@@ -27,10 +30,13 @@ services:
     container_name: fake-google
     environment:
       SERVER_PORT: 3002
+      DEBUG_PORT: 9230
     ports:
       - '3002:3002'
+      - '9230:9230'
     expose:
       - '3002'
+      - '9230'
     command: npm run dev
   fake-klaviyo:
     build:
@@ -43,10 +49,13 @@ services:
     container_name: fake-klaviyo
     environment:
       SERVER_PORT: 3004
+      DEBUG_PORT: 9231
     ports:
       - '3004:3004'
+      - '9231:9231'
     expose:
       - '3004'
+      - '9231'
     command: npm run dev
   redis:
     container_name: redis
@@ -73,6 +82,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ImAWhale
       SERVER_PORT: 3003
+      DEBUG_PORT: 9232
     links:
       - redis
     volumes:
@@ -80,6 +90,8 @@ services:
       - ./ramzor/nodemon.json:/home/node/app/nodemon.json
     ports:
       - '3003:3003'
+      - '9232:9232'
     expose:
       - '3003'
+      - '9232'
     command: npm run dev

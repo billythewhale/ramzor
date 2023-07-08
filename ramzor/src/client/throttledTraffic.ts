@@ -2,8 +2,14 @@ import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { providers } from './urls';
 import type { AxiosInstance } from 'axios';
 import type { Request, Response, NextFunction } from 'express';
-import type { Limit, RequestConfig, Zone, ZonesConfig } from '../types';
-import { getZoneIdsFromRequest } from '../utils/getZoneInfo';
+import type {
+  Limit,
+  PermissionRequest,
+  RequestConfig,
+  Zone,
+  ZonesConfig,
+} from '../types';
+import { getZoneInfoFromReq } from '../utils/getZoneInfo';
 import zonesConfig from '../config';
 import { makeAxiosReq } from '../utils/makeAxiosReq';
 import { promiseAllLimit } from '../utils/promiseAllLimit';
@@ -11,6 +17,7 @@ import { promiseAllLimit } from '../utils/promiseAllLimit';
 let ramzorClient: AxiosInstance = axios.create({
   baseURL: process.env.RAMZOR_URL || 'http://localhost:3003',
   method: 'GET',
+  validateStatus: (status) => [200, 429].includes(status),
 });
 
 export async function throttleRequests(
@@ -32,11 +39,14 @@ export async function throttleRequests(
 }
 
 async function throttleRequest(req: RequestConfig): Promise<AxiosResponse> {
-  const zoneIds = getZoneIdsFromRequest(req, zonesConfig);
+  const permissions = getZoneInfoFromReq(req, zonesConfig);
+  console.log(`${req.url}/${req.path}: `, permissions);
   let n = 0;
-  while (!(await askPermission(zoneIds))) {
+  await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 300)));
+  while (!(await askPermission(permissions))) {
     await new Promise((r) => {
       // exponential backoff from 100ms up to 5 min
+      // TODO: use the retry-after header
       let wait =
         Math.min(Math.pow(2, n++), 3000) * 100 +
         Math.floor(Math.random() * 300);
@@ -51,16 +61,26 @@ async function throttleRequest(req: RequestConfig): Promise<AxiosResponse> {
   return response;
 }
 
-async function askPermission(zoneIds: string[]) {
+async function askPermission(permissions: PermissionRequest[]) {
   try {
-    await Promise.all(
-      zoneIds.map((zoneId) => {
+    const statuses = await Promise.all(
+      permissions.map(async ({ zoneId, query }) => {
         // ramzor returns 429 if not allowed, ramzorClient will throw
-        ramzorClient.get(`/${zoneId}`);
+        try {
+          const resp = await ramzorClient.get(`/${zoneId}`, { params: query });
+          if (resp.status === 429) {
+            return false;
+          }
+          return true;
+        } catch (err) {
+          console.log('got error', err);
+          throw err;
+        }
       })
     );
-    return true;
+    return statuses.every((s) => !!s);
   } catch (err) {
-    return false;
+    console.log('rethrowing');
+    throw err;
   }
 }

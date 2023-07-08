@@ -1,5 +1,6 @@
 import {
   Limit,
+  PermissionRequest,
   RequestConfig,
   RequestMatcher,
   ZoneDescriber,
@@ -7,7 +8,7 @@ import {
 } from '../types';
 import { matchRequestToConfig } from './matchRequest';
 
-export function getZoneKeyFromConfig(zoneFor: ZoneDescriber): string {
+export function getZoneIdFromConfig(zoneFor: ZoneDescriber): string {
   let key = zoneFor.provider;
   if (zoneFor.apiName) {
     key += `:${zoneFor.apiName}`;
@@ -38,18 +39,17 @@ function getSubKey(matcher: RequestMatcher): string {
   return key;
 }
 
-export function getZoneIdsFromRequest(
+export function getZoneInfoFromReq(
   req: RequestConfig,
   conf: ZonesConfig
-): string[] {
+): PermissionRequest[] {
   const zones = matchRequestToConfig(req, conf);
   return zones
     .map((zone) =>
-      zone.limits.map(
-        (limit) =>
-          getZoneKeyFromConfig(zone.for) +
-          (limit.limitBy.length ? '::' + getReqKey(req, limit) : '')
-      )
+      zone.limits.map((limit) => ({
+        zoneId: getZoneIdFromConfig(zone.for),
+        ...(limit.limitBy.length && { query: getReqQuery(req, limit) }),
+      }))
     )
     .flat();
 }
@@ -66,10 +66,9 @@ function get(obj: any, path: string): string {
     .toString();
 }
 
-function getReqKey(req: RequestConfig, limit: Limit): string {
-  return limit.limitBy
-    .reduce((key, limitBy) => {
-      return key + get(req, limitBy);
-    }, '')
-    .replaceAll(/\W/g, '');
+function getReqQuery(req: RequestConfig, limit: Limit): Partial<RequestConfig> {
+  return limit.limitBy.reduce((acc, limitBy) => {
+    acc[limitBy] = get(req, limitBy);
+    return acc;
+  }, {});
 }

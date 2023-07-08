@@ -26,6 +26,11 @@ export type RequestConfig = {
   method?: string;
 };
 
+export type PermissionRequest = {
+  zoneId: string;
+  query: Partial<RequestConfig>;
+};
+
 /* Zone id gets built from zone describer:
  * {
  *   provider: 'facebook-ads',
