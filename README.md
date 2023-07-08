@@ -5,10 +5,10 @@ There are two parts:
 - server: keeps track of global use of rate limits and gives a red-light/green-light to client
 - client: asks server permission to make a request and follows client's instructions
 
-The server and the client keep track of relevant rate limit **zones**, via a shared config.
+The server and the client keep track of relevant rate limit `zones`, via a shared config.
 Here that's just in the `ramzor/config` dir, but it could be a DB or other persistence layer.
 
-To illustrate the concept of a zone, imagine that provider `facebook` has two endpoints, `/get-campaigns` and `/get-orders` and each endpoint has a rate limit of 6 calls per second per facebook ads account.
+To illustrate the concept of a `zone`, imagine that provider `facebook` has two endpoints, `/get-campaigns` and `/get-orders` and each endpoint has a rate limit of 6 calls per second per facebook ads account.
 Also imagine that there is a global limit of 10 calls/sec per account.
 
 Imagine we want to call both of these endpoints on behalf of two accounts, `acct_a` and `acct_b`, for a total of 4 api calls.
@@ -19,7 +19,7 @@ Api call 3 would touch 2 **zones**: `facebook-ads::acct_b` and `facebook-ads:get
 Api call 2 would touch 2 **zones**: `facebook-ads::acct_b` and `facebook-ads:get-orders::acct_b`
 
 Each zone's `zoneId` is made up of two parts `<zoneKey>::<reqKey>`:
-- `zoneKey` describes the zone in general, and the server will keep track of the limit policy/policies for this zone
+- `zoneKey` describes the zone in general, and the server will keep track of the limit policy/policies for this `zoneId`
 - `reqKey` describes the specific request, in terms relative to that zone. So in this case, it's the `accountId` because the zone rate limit is per account id.
 
 So the worker wanting to make the API calls would be responsible for:
