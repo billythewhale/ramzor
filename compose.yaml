@@ -1,0 +1,85 @@
+version: '3.9'
+services:
+  fake-facebook:
+    build:
+      context: ./fake-facebook
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - ./fake-facebook/src:/home/node/app/src
+      - ./fake-facebook/nodemon.json:/home/node/app/nodemon.json
+    container_name: fake-facebook
+    environment:
+      SERVER_PORT: 3001
+    ports:
+      - '3001:3001'
+    expose:
+      - '3001'
+    command: npm run dev
+  fake-google:
+    build:
+      context: ./fake-google
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - ./fake-google/src:/home/node/app/src
+      - ./fake-google/nodemon.json:/home/node/app/nodemon.json
+    container_name: fake-google
+    environment:
+      SERVER_PORT: 3002
+    ports:
+      - '3002:3002'
+    expose:
+      - '3002'
+    command: npm run dev
+  fake-klaviyo:
+    build:
+      context: ./fake-klaviyo
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - ./fake-klaviyo/src:/home/node/app/src
+      - ./fake-klaviyo/nodemon.json:/home/node/app/nodemon.json
+    container_name: fake-klaviyo
+    environment:
+      SERVER_PORT: 3004
+    ports:
+      - '3004:3004'
+    expose:
+      - '3004'
+    command: npm run dev
+  redis:
+    container_name: redis
+    hostname: redis
+    image: redis:6.2-alpine
+    restart: always
+    volumes:
+      - .redis:/data
+    ports:
+      - '6379:6379'
+    expose:
+      - '6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass ImAWhale
+  ramzor:
+    container_name: ramzor
+    build:
+      context: ./ramzor
+      dockerfile: Dockerfile
+      target: base
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ImAWhale
+      SERVER_PORT: 3003
+    links:
+      - redis
+    volumes:
+      - ./ramzor/src:/home/node/app/src
+      - ./ramzor/nodemon.json:/home/node/app/nodemon.json
+    ports:
+      - '3003:3003'
+    expose:
+      - '3003'
+    command: npm run dev

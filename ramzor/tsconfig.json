@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "resolveJsonModule": true,
+    "outDir": "./build/",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": ["src/"],
+  "exclude": ["src/__test__/", "**/*.test.ts"]
+}
