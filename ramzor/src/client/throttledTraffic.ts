@@ -58,7 +58,7 @@ async function throttleRequest(req: RequestConfig): Promise<AxiosResponse> {
   while (true) {
     waitingReqs++;
     const { allowed, retryAfter } = await askPermission(permissions);
-    if (1) {
+    if (allowed) {
       successReqs++;
       waitingReqs--;
       break;
