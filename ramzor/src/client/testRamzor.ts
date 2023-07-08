@@ -36,8 +36,8 @@ export async function runClient() {
 function getTestRequests(shopData: any): RequestConfig[] {
   return [
     ...getFacebookReqs(shopData),
-    ...getGoogleReqs(shopData),
-    ...getKlaviyoReqs(shopData),
+    // ...getGoogleReqs(shopData),
+    // ...getKlaviyoReqs(shopData),
   ].map((req) => ({
     ...req,
     ip: process.env.HOST_IP || '',

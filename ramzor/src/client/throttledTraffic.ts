@@ -87,6 +87,7 @@ async function askPermission(
   if (resp.status === 429) {
     return { allowed: false, retryAfter: resp.headers['retry-after'] };
   }
+  console.log(resp.status);
   return { allowed: true };
 }
 
