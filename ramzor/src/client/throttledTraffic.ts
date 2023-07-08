@@ -38,7 +38,7 @@ export async function throttleRequests(
   let promises: Promise<number>[] = [];
   let results: number[] = [];
   for (let req of reqs) {
-    await new Promise((r) => setTimeout(r, 25)); // wait 25ms between requests
+    await new Promise((r) => setTimeout(r, 5)); // don't send all 13k reqs at once
     promises.push(
       throttleRequest(req)
         .then((res) => results.push(res.status))

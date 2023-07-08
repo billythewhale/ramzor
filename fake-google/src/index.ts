@@ -10,7 +10,7 @@ app.get('/healthcheck', (req, res) => {
 app.use(
   ...createRateLimitMiddlewares([
     { quota: 1, window: 1, params: ['query.accountId'] },
-    { quota: 50, window: 60, params: ['ip'] },
+    { quota: 500, window: 60, params: ['ip'] },
   ])
 );
 
