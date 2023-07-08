@@ -119,14 +119,14 @@ function getGoogleReqs(shopData: any): RequestConfig[] {
     {
       path: '/endpoint2',
     },
-  ].map((req) => ({
+  ].map((req, i) => ({
     ...req,
     provider: 'google-ads',
     url,
     query: {
       accountId: shopData['google-ads'].accountId,
     },
-    ip: process.env.HOST_IP || '',
+    ip: i % 2 ? '123.4.5.67' : '135.7.9.11', // pretend we're calling from two different IPs
   }));
 }
 
