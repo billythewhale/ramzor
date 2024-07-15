@@ -1,11 +1,6 @@
 import { createClient } from 'redis';
 import type { RedisClientType } from 'redis';
-import type {
-  PermissionRequest,
-  RateLimitsConfig,
-  Policy,
-  PermissionResponse,
-} from '../types';
+import type { Ask, RateLimitsConfig, Policy, Answer } from '../types';
 import { monotonic } from '../utils/clock';
 
 export class Stoplight {
@@ -34,13 +29,9 @@ export class Stoplight {
     await this._resetRedis();
   }
 
-  public async checkRequests(
-    permissions: PermissionRequest[]
-  ): Promise<PermissionResponse> {
+  public async checkRequests(asks: Ask[]): Promise<Answer> {
     try {
-      const allChecked = await Promise.all(
-        permissions.map((permission) => this.check(permission))
-      );
+      const allChecked = await Promise.all(asks.map((ask) => this.check(ask)));
       const allAllowed = allChecked.every((c) => c.allowed);
       if (!allAllowed) {
         return allChecked
@@ -48,19 +39,14 @@ export class Stoplight {
           .sort((a, b) => parseInt(b.retryAfter) - parseInt(a.retryAfter))[0]; // find the longest retryAfter
       }
       // this is fragile, make it more atomic
-      await Promise.all(
-        permissions.map((permission) => this.increment(permission))
-      );
+      await Promise.all(asks.map((ask) => this.increment(ask)));
       return { allowed: true };
     } catch (e) {
       return { allowed: false };
     }
   }
 
-  private async check({
-    zoneKey,
-    policy,
-  }: PermissionRequest): Promise<PermissionResponse> {
+  private async check({ zoneKey, policy }: Ask): Promise<Answer> {
     const count = await this.redis.get(zoneKey);
     // one less than necessary, but errs on the side of never getting 429
     // in case two clients are checking the same call in a race condition
@@ -70,10 +56,7 @@ export class Stoplight {
     return { allowed: true };
   }
 
-  private async increment({
-    zoneKey,
-    policy,
-  }: PermissionRequest): Promise<void> {
+  private async increment({ zoneKey, policy }: Ask): Promise<void> {
     const count = await this.redis.incr(zoneKey);
     if (count > policy.maxCalls) {
       throw new Error('Too many calls: ' + zoneKey);

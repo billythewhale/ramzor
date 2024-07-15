@@ -64,12 +64,12 @@ export type Policy = {
   description: string;
 };
 
-export type PermissionRequest = {
+export type Ask = {
   zoneKey: string;
   policy: Policy;
 };
 
-export type PermissionResponse = {
+export type Answer = {
   allowed: boolean;
   retryAfter?: string;
 };

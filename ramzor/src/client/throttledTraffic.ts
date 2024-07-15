@@ -4,8 +4,8 @@ import type { AxiosInstance } from 'axios';
 import type { Request, Response, NextFunction } from 'express';
 import type {
   Limit,
-  PermissionRequest,
-  PermissionResponse,
+  Ask,
+  Answer,
   RequestConfig,
   Zone,
   ZonesConfig,
@@ -54,7 +54,7 @@ export async function throttleRequests(
 
 async function throttleRequest(req: RequestConfig): Promise<AxiosResponse> {
   attemptedReqs++;
-  const permissions: PermissionRequest[] = getZoneInfoFromReq(req, zonesConfig);
+  const permissions: Ask[] = getZoneInfoFromReq(req, zonesConfig);
   let n = 0;
   let wait = 0;
   await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 300))); // jittter
@@ -83,9 +83,7 @@ async function throttleRequest(req: RequestConfig): Promise<AxiosResponse> {
   return response;
 }
 
-async function askPermission(
-  permissions: PermissionRequest[]
-): Promise<PermissionResponse> {
+async function askPermission(permissions: Ask[]): Promise<Answer> {
   const resp = await ramzorClient.post(`/check`, { permissions });
   if (resp.status === 429) {
     return { allowed: false, retryAfter: resp.headers['retry-after'] };

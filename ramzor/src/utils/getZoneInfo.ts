@@ -3,7 +3,7 @@ import {
   Policy,
   RequestConfig,
   RequestMatcher,
-  PermissionRequest,
+  Ask,
   ZoneDescriber,
   ZonesConfig,
 } from '../types';
@@ -43,7 +43,7 @@ function getSubKey(matcher: RequestMatcher): string {
 export function getZoneInfoFromReq(
   req: RequestConfig,
   conf: ZonesConfig
-): PermissionRequest[] {
+): Ask[] {
   const zones = matchRequestToConfig(req, conf);
   return zones
     .map((zone) =>
