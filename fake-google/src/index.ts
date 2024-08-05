@@ -32,9 +32,10 @@ async function writeLogToFile(log: string) {
 }
 
 function loggingMw(req, res, next) {
-  const uuid = v4();
-  req.uuid = uuid;
-  buffer += `google ${new Date().toISOString()} [${req.uuid}] ${req.method} ${req.url} ${req.ip}\n`;
+  req.uuid = req.body.requestId || 'n/a';
+  buffer += `google ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
+    req.url
+  } ${req.ip}\n`;
   JSON.stringify({
     body: req.body,
     query: req.query,
@@ -63,7 +64,7 @@ app.use(
   ...createRateLimitMiddlewares([
     { quota: 1, window: 1, params: ['body.accountId'] },
     { quota: 500, window: 60, params: ['ip'] },
-  ]),
+  ])
 );
 
 app.post('/endpoint1', (req, res) => {

@@ -32,10 +32,11 @@ async function writeLogToFile(log: string) {
 }
 
 function loggingMw(req, res, next) {
-  const uuid = v4();
-  req.uuid = uuid;
+  req.uuid = req.body.requestId || 'n/a';
   buffer +=
-    `klaviyo ${new Date().toISOString()} [${req.uuid}] ${req.method} ${req.url} ${req.ip}\n` +
+    `klaviyo ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
+      req.url
+    } ${req.ip}\n` +
     JSON.stringify({
       body: req.body,
       query: req.query,
@@ -74,14 +75,14 @@ router.use(
   ...createRateLimitMiddlewares('global', [
     { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
     { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
-  ]),
+  ])
 );
 
 router.use(
   ...createRateLimitMiddlewares('additional-fields', [
     rateLimitConfig,
     { ...rateLimitConfig, quota: 10, window: 10 },
-  ]),
+  ])
 );
 
 router.post(
@@ -92,7 +93,7 @@ router.post(
   ]),
   (req, res) => {
     res.send('OK');
-  },
+  }
 );
 
 router.post(
@@ -103,7 +104,7 @@ router.post(
   ]),
   (req, res) => {
     res.send(req.params.id);
-  },
+  }
 );
 
 app.use('/api', router);

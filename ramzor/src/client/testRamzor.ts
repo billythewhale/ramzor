@@ -11,6 +11,7 @@ import facebookConfig from '../config/facebook';
 import klaviyoConfig from '../config//klaviyo';
 import googleConfig from '../config/google';
 
+import { writeLogfile } from './log';
 import { getMetrics, useStoplight, type AxiosRequestConfig } from '@tw/ramzor';
 import { makeAxiosReq } from '../utils/makeAxiosReq';
 
@@ -43,19 +44,33 @@ const [facebookReqs, googleReqs, klaviyoReqs] = shopDocs.reduce(
   [[], [], []]
 );
 
+async function sendRequest(r: any) {
+  writeLogfile(r);
+  return await axios.request(makeAxiosReq(r) as any);
+}
+
 let done = false;
-const facebookSender = useStoplight('facebook', facebookConfig, {
+const _facebookSender = useStoplight('facebook', facebookConfig, {
   // debugName: 'facebook',
 });
-const klaviyoSender = useStoplight('klaviyo', klaviyoConfig, {
+const _klaviyoSender = useStoplight('klaviyo', klaviyoConfig, {
   // debugName: 'klaviyo',
 });
 const _googleSender = useStoplight('google', googleConfig, {
   // debugName: 'google',
 });
-const googleSender = async (req: AxiosRequestConfig) => {
+const googleSender = async (req: any) => {
   const ip = Math.random() < 0.5 ? '123.4.5.6' : '135.7.9.11'; // pretend we're sending from 2 different IPs
-  return await _googleSender(req, { extraProps: { 'tw-ip': ip } });
+  const r = { ...req, 'tw-ip': ip };
+  return _googleSender(r, async () => await sendRequest(r));
+};
+
+const klaviyoSender = async (req: any) => {
+  return _klaviyoSender(req, async () => await sendRequest(req));
+};
+
+const facebookSender = async (req: any) => {
+  return _facebookSender(req, async () => await sendRequest(req));
 };
 
 export async function runClient() {
@@ -67,33 +82,28 @@ export async function runClient() {
       [googleReqs, googleSender],
       [klaviyoReqs, klaviyoSender],
     ]
-      .map(
-        async ([requests, sender]: [
-          AxiosRequestConfig[],
-          ReturnType<typeof useStoplight>,
-        ]) => {
-          return await Promise.all(
-            requests.map(
-              (r: any) =>
-                new Promise((resolve) =>
-                  setTimeout(
-                    () =>
-                      resolve(
-                        sender(makeAxiosReq(r)).catch((e) => {
-                          console.log({
-                            status: e.response?.status,
-                            message: e.message,
-                            request: r,
-                          });
-                        })
-                      ),
-                    Math.floor(Math.random() * 200)
-                  )
+      .map(async ([requests, sender]: [AxiosRequestConfig[], any]) => {
+        return await Promise.all(
+          requests.map(
+            (r: any) =>
+              new Promise((resolve) =>
+                setTimeout(
+                  () =>
+                    resolve(
+                      sender(r).catch((e) => {
+                        console.log({
+                          status: e.response?.status,
+                          message: e.message,
+                          request: r,
+                        });
+                      })
+                    ),
+                  Math.floor(Math.random() * 200)
                 )
-            )
-          );
-        }
-      )
+              )
+          )
+        );
+      })
       .flat()
   );
   logProgress();

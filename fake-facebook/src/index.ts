@@ -32,10 +32,11 @@ async function writeLogToFile(log: string) {
 }
 
 function loggingMw(req, res, next) {
-  const uuid = v4();
-  req.uuid = uuid;
+  req.uuid = req.body.requestId || 'n/a';
   buffer +=
-    `facebook ${new Date().toISOString()} [${req.uuid}] ${req.method} ${req.url} ${req.ip}\n` +
+    `facebook ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
+      req.url
+    } ${req.ip}\n` +
     JSON.stringify({
       body: req.body,
       params: req.params,
@@ -65,7 +66,7 @@ const adsAnalyticsRouter = express.Router();
 adsAnalyticsRouter.use(
   ...createRateLimitMiddlewares('ads-analytics', [
     { quota: 1, window: 1, params: ['body.accountId', 'path'] },
-  ]),
+  ])
 );
 
 adsAnalyticsRouter.post('/endpoint1', (req, res) => {
@@ -81,7 +82,7 @@ const adsManagementRouter = express.Router();
 adsManagementRouter.use(
   ...createRateLimitMiddlewares('ads-management', [
     { quota: 2, window: 1, params: ['body.accountId'] },
-  ]),
+  ])
 );
 
 adsManagementRouter.post('/endpoint1', (req, res) => {
