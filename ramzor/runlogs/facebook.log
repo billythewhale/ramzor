@@ -1,18 +1,4 @@
-facebook 2024-08-05T16:17:55.785Z [n/a] GET /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:18:08.774Z [n/a] POST /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:34:22.562Z [n/a] POST /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:39:55.014Z [n/a] POST /helathcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:40:01.469Z [n/a] POST /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:42:44.736Z [n/a] POST /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:45:03.010Z [n/a] POST /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:51:32.840Z [n/a] POST /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"localhost:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
-facebook 2024-08-05T16:53:11.594Z [n/a] GET /healthcheck ::ffff:192.168.65.1
-{"body":{},"params":{},"headers":{"host":"0.0.0.0:3031","user-agent":"curl/8.4.0","accept":"*/*"}}
+facebook 2024-08-05T17:02:58.022Z [n/a] POST /reset ::ffff:192.168.65.1
+{"body":{},"params":{},"headers":{"accept":"application/json, text/plain, */*","content-type":"application/x-www-form-urlencoded","user-agent":"axios/1.4.0","accept-encoding":"gzip, compress, deflate, br","host":"localhost:3034","connection":"close","content-length":"0"}}
+facebook 2024-08-05T17:02:58.022Z [n/a] POST /reset ::ffff:192.168.65.1
+{"body":{},"params":{},"headers":{"accept":"application/json, text/plain, */*","content-type":"application/x-www-form-urlencoded","user-agent":"axios/1.4.0","accept-encoding":"gzip, compress, deflate, br","host":"localhost:3031","connection":"close","content-length":"0"}}

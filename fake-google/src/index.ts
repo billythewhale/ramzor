@@ -4,7 +4,7 @@ import { createRateLimitMiddlewares, resetRateLimitStore } from './rateLimiter';
 import * as fs from 'fs';
 
 const app = express();
-app.use(express.json);
+app.use(express.json());
 
 const LOGFILE = '/usr/log/facebook.log';
 let logStream = fs.createWriteStream(LOGFILE, { flags: 'a' });
