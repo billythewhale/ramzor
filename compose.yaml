@@ -8,6 +8,7 @@ services:
     volumes:
       - ./fake-facebook/src:/home/node/app/src
       - ./fake-facebook/nodemon.json:/home/node/app/nodemon.json
+      - /Users/billy/ramzor/ramzor/runlogs:/usr/log
     container_name: fake-facebook
     environment:
       SERVER_PORT: 3001
@@ -27,6 +28,7 @@ services:
     volumes:
       - ./fake-google/src:/home/node/app/src
       - ./fake-google/nodemon.json:/home/node/app/nodemon.json
+      - /Users/billy/ramzor/ramzor/runlogs:/usr/log
     container_name: fake-google
     environment:
       SERVER_PORT: 3002
@@ -46,6 +48,7 @@ services:
     volumes:
       - ./fake-klaviyo/src:/home/node/app/src
       - ./fake-klaviyo/nodemon.json:/home/node/app/nodemon.json
+      - /Users/billy/ramzor/ramzor/runlogs:/usr/log
     container_name: fake-klaviyo
     environment:
       SERVER_PORT: 3004

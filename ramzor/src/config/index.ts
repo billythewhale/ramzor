@@ -1,13 +1,13 @@
-import type { ZonesConfig } from '../types';
+import type { Zones } from '@tw/ramzor';
 
 import facebookConfig from './facebook';
 import klaviyoConfig from './klaviyo';
 import googleConfig from './google';
 
-const zonesConfig: ZonesConfig = [
-  ...facebookConfig.zones,
-  ...klaviyoConfig.zones,
-  ...googleConfig.zones,
+const zonesConfig: Zones = [
+  ...facebookConfig,
+  ...klaviyoConfig,
+  ...googleConfig,
 ];
 
 export default zonesConfig;

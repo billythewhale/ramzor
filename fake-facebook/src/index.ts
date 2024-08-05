@@ -1,9 +1,62 @@
 import express from 'express';
-import { createRateLimitMiddlewares } from './rateLimiter';
+import { v4 } from 'uuid';
+import { createRateLimitMiddlewares, resetRateLimitStore } from './rateLimiter';
+import { promises as fs } from 'fs';
 
 const app = express();
+app.use(express.json());
 
-app.get('/healthcheck', (req, res) => {
+let buffer = '';
+let logLines = 0;
+
+async function flushLog() {
+  if (!buffer.length) return;
+  const lines = buffer;
+  buffer = '';
+  logLines = 0;
+  await writeLogToFile(lines);
+}
+
+setInterval(() => flushLog(), 1000 * 5);
+process.on('SIGTERM', () => flushLog());
+
+const LOGFILE = '/usr/log/facebook.log';
+
+async function writeLogToFile(log: string) {
+  try {
+    return await fs.appendFile(LOGFILE, log);
+  } catch (err) {
+    console.error('Error writing log to file:', err);
+    await writeLogToFile(log);
+  }
+}
+
+function loggingMw(req, res, next) {
+  const uuid = v4();
+  req.uuid = uuid;
+  buffer +=
+    `facebook ${new Date().toISOString()} [${req.uuid}] ${req.method} ${req.url} ${req.ip}\n` +
+    JSON.stringify({
+      body: req.body,
+      params: req.params,
+      headers: req.headers,
+    }) +
+    '\n';
+  if (++logLines === 100) {
+    flushLog();
+  }
+  next();
+}
+
+app.use(loggingMw);
+
+app.use('/reset', (req, res) => {
+  resetRateLimitStore();
+  fs.writeFile(LOGFILE, '');
+  res.send('OK');
+});
+
+app.post('/healthcheck', (req, res) => {
   res.send('OK');
 });
 
@@ -11,26 +64,24 @@ const adsAnalyticsRouter = express.Router();
 
 adsAnalyticsRouter.use(
   ...createRateLimitMiddlewares('ads-analytics', [
-    { quota: 1, window: 1, params: ['query.accountId', 'path'] },
-  ])
+    { quota: 1, window: 1, params: ['body.accountId', 'path'] },
+  ]),
 );
 
-adsAnalyticsRouter.get('/endpoint1', (req, res) => {
+adsAnalyticsRouter.post('/endpoint1', (req, res) => {
   res.send('OK');
 });
 
-adsAnalyticsRouter.get('/endpoint2', (req, res) => {
+adsAnalyticsRouter.post('/endpoint2', (req, res) => {
   res.send('OK');
 });
 
 const adsManagementRouter = express.Router();
 
-adsManagementRouter.use(express.json());
-
 adsManagementRouter.use(
   ...createRateLimitMiddlewares('ads-management', [
     { quota: 2, window: 1, params: ['body.accountId'] },
-  ])
+  ]),
 );
 
 adsManagementRouter.post('/endpoint1', (req, res) => {

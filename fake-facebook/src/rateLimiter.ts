@@ -2,7 +2,11 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 type RateLimitConfig = { quota: number; window: number; params: string[] }[];
 
-const rateLimitStore = new Map<string, { count: number; end: number }>();
+let rateLimitStore = new Map<string, { count: number; end: number }>();
+
+export function resetRateLimitStore() {
+  rateLimitStore = new Map<string, { count: number; end: number }>();
+}
 
 const clock = {
   monotonic: () => {
@@ -23,14 +27,14 @@ const get = (obj: any, path: string, fallback?: any) => {
 
 export function createRateLimitMiddlewares(
   name: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
 ): RequestHandler[] {
   return config.map(
     (conf) =>
       function rateLimitMiddleware(
-        req: Request,
+        req: any,
         res: Response,
-        next: NextFunction
+        next: NextFunction,
       ) {
         const { quota, window, params } = conf;
         const now = Math.ceil(clock.monotonic() / 1000);
@@ -39,7 +43,6 @@ export function createRateLimitMiddlewares(
           if (!get(req, param)) {
             const field = param.split('.').shift();
             console.log(field, req[field]);
-            console.log('data', req.data);
             throw new Error(`Missing required request property: ${param}`);
           }
           key += `-${get(req, param)}`;
@@ -51,7 +54,21 @@ export function createRateLimitMiddlewares(
           }, window * 1000);
         }
         if (++rateLimitStore.get(key).count > quota) {
-          console.log(req.path + ' rate limit exceeded');
+          console.log(req.path, 'rate limit exceeded for:', {
+            name,
+            key,
+            params,
+            req: {
+              uuid: req.uuid,
+              body: req.body,
+              params: req.params,
+              query: req.query,
+              path: req.path,
+              url: req.url,
+            },
+            count: rateLimitStore.get(key).count,
+            quota,
+          });
           return res
             .status(429)
             .header('Retry-After', `${+rateLimitStore.get(key).end - now + 1}`)
@@ -63,6 +80,6 @@ export function createRateLimitMiddlewares(
           `reset=${rateLimitStore.get(key).end - now + 1}`;
         console.log(req.path + ' rate limit: ' + msg);
         next();
-      }
+      },
   );
 }

@@ -7,7 +7,11 @@ type RateLimitConfig = {
   match?: string;
 }[];
 
-const rateLimitStore = new Map<string, { count: number; end: number }>();
+let rateLimitStore = new Map<string, { count: number; end: number }>();
+
+export function resetRateLimitStore() {
+  rateLimitStore = new Map<string, { count: number; end: number }>();
+}
 
 const clock = {
   monotonic: () => {
@@ -28,14 +32,14 @@ const get = (obj: any, path: string, fallback?: any) => {
 
 export function createRateLimitMiddlewares(
   name: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
 ): RequestHandler[] {
   return config.map(
     (conf) =>
       function rateLimitMiddleware(
-        req: Request,
+        req: Request & any,
         res: Response,
-        next: NextFunction
+        next: NextFunction,
       ) {
         const { quota, window, params = [], match } = conf;
         if (match && !get(req, match)) {
@@ -59,7 +63,21 @@ export function createRateLimitMiddlewares(
           }, window * 1000);
         }
         if (++rateLimitStore.get(key).count > quota) {
-          console.log('Rate limit exceeded', key, req.path);
+          console.log(req.path, 'rate limit exceeded for:', {
+            key,
+            params,
+            req: {
+              uuid: req.uuid,
+              body: req.body,
+              params: req.params,
+              query: req.query,
+              path: req.path,
+              url: req.url,
+              headers: req.headers,
+            },
+            count: rateLimitStore.get(key).count,
+            quota,
+          });
           res
             .status(429)
             .header('Retry-After', `${+rateLimitStore.get(key).end - now + 1}`)
@@ -67,6 +85,6 @@ export function createRateLimitMiddlewares(
           return;
         }
         next();
-      }
+      },
   );
 }

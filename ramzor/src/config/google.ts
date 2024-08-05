@@ -1,14 +1,12 @@
-import { RateLimitsConfig, ZonesConfig } from '../types';
+import { makeKey, Zones } from '@tw/ramzor';
 
-const zones: ZonesConfig = [
+const config: Zones = [
   {
-    for: {
-      provider: 'google-ads',
-      description: 'Google Ads API',
-    },
+    key: makeKey('google_ads'),
+    description: 'Google Ads API',
     limits: [
       {
-        limitBy: ['query.accountId'],
+        limitBy: ['data.accountId'],
         policies: [
           {
             window: 1,
@@ -18,7 +16,11 @@ const zones: ZonesConfig = [
         ],
       },
       {
-        limitBy: ['ip'],
+        // let's make some arbitrary property that we'll add to the request object
+        // for example, if the API is rate limited by IP ( which we might not know )
+        // we can add a property to the request object that will be used to identify
+        // requests from this process
+        limitBy: ['tw-ip'],
         policies: [
           {
             window: 60,
@@ -30,9 +32,5 @@ const zones: ZonesConfig = [
     ],
   },
 ];
-
-const config: RateLimitsConfig = {
-  zones,
-};
 
 export default config;

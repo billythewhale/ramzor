@@ -1,10 +1,9 @@
 import {
-  Limit,
-  Policy,
-  RateLimitsConfig,
-  ZoneDescriber,
-  ZonesConfig,
-} from '../types';
+  makeKey,
+  type AxiosRequestConfig,
+  type Policy,
+  type Zones,
+} from '@tw/ramzor';
 
 const limit_xs: Policy[] = [
   {
@@ -71,22 +70,13 @@ const limit_xl: Policy[] = [
   },
 ];
 
-const base: ZoneDescriber = {
-  provider: 'klaviyo',
-  description: 'Klaviyo API',
-};
-
-const zones: ZonesConfig = [
+const config: Zones = [
   {
-    for: {
-      ...base,
-      request: {
-        query: {
-          'additional-fields': { exists: true },
-        },
-      },
-      description: 'Klaviyo additional-fields query',
-    },
+    key: makeKey('additional_fields'),
+    condition: (req: AxiosRequestConfig) =>
+      req.params?.['additional-fields'] !== undefined ||
+      req.data?.['additional-fields'] !== undefined,
+    description: 'Klaviyo additional-fields query',
     limits: [
       {
         limitBy: ['headers.x-tw-klaviyo-account'],
@@ -95,15 +85,10 @@ const zones: ZonesConfig = [
     ],
   },
   {
-    for: {
-      ...base,
-      request: {
-        path: {
-          exact: '/api/profiles',
-        },
-      },
-      description: 'Klaviyo GET /profiles',
-    },
+    key: makeKey('profiles'),
+    condition: (req: AxiosRequestConfig) =>
+      req.method === 'GET' && req.url === '/api/profiles',
+    description: 'Klaviyo GET /profiles',
     limits: [
       {
         limitBy: ['headers.x-tw-klaviyo-account'],
@@ -112,15 +97,10 @@ const zones: ZonesConfig = [
     ],
   },
   {
-    for: {
-      ...base,
-      request: {
-        path: {
-          match: /\/accounts\/\w+\/info/,
-        },
-      },
-      description: 'Klaviyo GET /accounts/:id/info',
-    },
+    key: makeKey('accounts_info'),
+    condition: (req: AxiosRequestConfig) =>
+      /\/accounts\/\w+\/info/.test(req.url),
+    description: 'Klaviyo GET /accounts/:id/info',
     limits: [
       {
         limitBy: ['headers.x-tw-klaviyo-account'],
@@ -129,9 +109,7 @@ const zones: ZonesConfig = [
     ],
   },
   {
-    for: {
-      ...base,
-    },
+    key: makeKey('by_account'),
     limits: [
       {
         limitBy: ['headers.x-tw-klaviyo-account'],
@@ -140,9 +118,5 @@ const zones: ZonesConfig = [
     ],
   },
 ];
-
-const config: RateLimitsConfig = {
-  zones,
-};
 
 export default config;

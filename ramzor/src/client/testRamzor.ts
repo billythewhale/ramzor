@@ -1,6 +1,18 @@
+import { v4 } from 'uuid';
+process.env.REDIS_HOST = 'localhost';
+process.env.REDIS_PORT = '6379';
+process.env.REDIS_PASSWORD = 'ImAWhale';
+
+import axios from 'axios';
+import { promises as fs } from 'fs';
+
 import urls from './urls';
-import { throttleRequests } from './throttledTraffic';
-import type { RequestConfig } from '../types';
+import facebookConfig from '../config/facebook';
+import klaviyoConfig from '../config//klaviyo';
+import googleConfig from '../config/google';
+
+import { getMetrics, useStoplight, type AxiosRequestConfig } from '@tw/ramzor';
+import { makeAxiosReq } from '../utils/makeAxiosReq';
 
 const shops = Array.from(
   { length: 1000 },
@@ -20,64 +32,141 @@ const shopDocs = shops.map((shop) => ({
   },
 }));
 
-const importDataRequests: RequestConfig[] = shopDocs
-  .map((shopData) => getTestRequests(shopData))
-  .flat();
+const [facebookReqs, googleReqs, klaviyoReqs] = shopDocs.reduce(
+  (acc, shopData) => {
+    const [fb, g, k] = getTestRequests(shopData);
+    acc[0].push(...fb);
+    acc[1].push(...g);
+    acc[2].push(...k);
+    return acc;
+  },
+  [[], [], []]
+);
+
+let done = false;
+const facebookSender = useStoplight('facebook', facebookConfig, {
+  // debugName: 'facebook',
+});
+const klaviyoSender = useStoplight('klaviyo', klaviyoConfig, {
+  // debugName: 'klaviyo',
+});
+const _googleSender = useStoplight('google', googleConfig, {
+  // debugName: 'google',
+});
+const googleSender = async (req: AxiosRequestConfig) => {
+  const ip = Math.random() < 0.5 ? '123.4.5.6' : '135.7.9.11'; // pretend we're sending from 2 different IPs
+  return await _googleSender(req, { extraProps: { 'tw-ip': ip } });
+};
 
 export async function runClient() {
-  const results = await throttleRequests(importDataRequests);
-  if (results.some((r) => r !== 200)) {
-    console.error('some requests failed!');
+  const start = process.hrtime.bigint();
+  await fs.writeFile('/Users/billy/ramzor/ramzor/src/client/logfile.log', '');
+  const promises = Promise.all(
+    [
+      [facebookReqs, facebookSender],
+      [googleReqs, googleSender],
+      [klaviyoReqs, klaviyoSender],
+    ]
+      .map(
+        async ([requests, sender]: [
+          AxiosRequestConfig[],
+          ReturnType<typeof useStoplight>,
+        ]) => {
+          return await Promise.all(
+            requests.map(
+              (r: any) =>
+                new Promise((resolve) =>
+                  setTimeout(
+                    () =>
+                      resolve(
+                        sender(makeAxiosReq(r)).catch((e) => {
+                          console.log({
+                            status: e.response?.status,
+                            message: e.message,
+                            request: r,
+                          });
+                        })
+                      ),
+                    Math.floor(Math.random() * 200)
+                  )
+                )
+            )
+          );
+        }
+      )
+      .flat()
+  );
+  logProgress();
+  const results = (await promises).flat();
+  done = true;
+  const end = process.hrtime.bigint();
+  const diff = Number(end - start) / 1e6;
+  const four20nines = results.filter((r: any) => r.status === 429).length;
+  const fiveHundos = results.filter((r: any) => r.status >= 500).length;
+  if (four20nines || fiveHundos) {
+    console.error('some requests failed!', diff, 'ms', {
+      four20nines,
+      fiveHundos,
+    });
   } else {
-    console.log('all requests succeeded!');
+    console.log('all requests succeeded!', diff, 'ms');
   }
 }
 
-function getTestRequests(shopData: any): RequestConfig[] {
-  return [
-    ...getFacebookReqs(shopData),
-    ...getGoogleReqs(shopData),
-    ...getKlaviyoReqs(shopData),
-  ].map((req) => ({
-    ...req,
-    ip: process.env.HOST_IP || '',
-  }));
+async function logProgress() {
+  await new Promise((r) => setTimeout(r, 1000));
+  console.log(getMetrics());
+  if (!done) {
+    logProgress();
+  } else {
+    process.exit(0);
+  }
 }
 
-function getFacebookReqs(shopData: any): RequestConfig[] {
+function getTestRequests(shopData: any): AxiosRequestConfig[][] {
+  return [
+    getFacebookReqs(shopData),
+    getGoogleReqs(shopData),
+    getKlaviyoReqs(shopData),
+  ].map((provider) =>
+    provider.map((req) => ({ ...req, body: { ...req.body, requestId: v4() } }))
+  );
+}
+
+function getFacebookReqs(shopData: any): any[] {
   const url = urls.facebook;
   return [
     {
       path: '/analytics/endpoint1',
       apiName: 'ads_analytics',
-      query: {
+      body: {
         accountId: shopData['facebook-ads'].accountId,
       },
-      method: 'GET',
+      method: 'POST',
     },
     {
       path: '/analytics/endpoint2',
       apiName: 'ads_analytics',
-      query: {
+      body: {
         accountId: shopData['facebook-ads'].accountId,
       },
-      method: 'GET',
+      method: 'POST',
     },
     {
       path: '/analytics/endpoint1',
       apiName: 'ads_analytics',
-      query: {
+      body: {
         accountId: shopData['facebook-ads'].accountId,
       },
-      method: 'GET',
+      method: 'POST',
     },
     {
       path: '/analytics/endpoint2',
       apiName: 'ads_analytics',
-      query: {
+      body: {
         accountId: shopData['facebook-ads'].accountId,
       },
-      method: 'GET',
+      method: 'POST',
     },
     {
       path: '/manage/endpoint1',
@@ -110,7 +199,7 @@ function getFacebookReqs(shopData: any): RequestConfig[] {
   }));
 }
 
-function getGoogleReqs(shopData: any): RequestConfig[] {
+function getGoogleReqs(shopData: any): any[] {
   const url = urls.google;
   return [
     {
@@ -123,19 +212,18 @@ function getGoogleReqs(shopData: any): RequestConfig[] {
     ...req,
     provider: 'google-ads',
     url,
-    query: {
+    body: {
       accountId: shopData['google-ads'].accountId,
     },
-    ip: i % 2 ? '123.4.5.67' : '135.7.9.11', // pretend we're calling from two different IPs
   }));
 }
 
-function getKlaviyoReqs(shopData: any): RequestConfig[] {
+function getKlaviyoReqs(shopData: any): any[] {
   const url = urls.klaviyo;
   return [
     {
       path: '/api/profiles',
-      query: {
+      body: {
         'additional-fields': 'email,name,phone',
       },
     },
@@ -144,8 +232,8 @@ function getKlaviyoReqs(shopData: any): RequestConfig[] {
     },
     {
       path: `/api/accounts/${shopData.klaviyo.accountId}/info`,
-      params: {
-        id: shopData.klaviyo.accountId,
+      body: {
+        uuid: v4(),
       },
     },
     {
@@ -153,7 +241,7 @@ function getKlaviyoReqs(shopData: any): RequestConfig[] {
       params: {
         id: shopData.klaviyo.accountId,
       },
-      query: {
+      body: {
         'additional-fields': 'email,name,phone',
       },
     },

@@ -1,37 +1,90 @@
 import express from 'express';
-import { createRateLimitMiddlewares } from './rateLimiter';
+import { v4 } from 'uuid';
+import { createRateLimitMiddlewares, resetRateLimitStore } from './rateLimiter';
+import { promises as fs } from 'fs';
 
 const app = express();
+app.use(express.json);
 
-app.get('/healthcheck', (req, res) => {
+let buffer = '';
+let logLines = 0;
+
+async function flushLog() {
+  if (!buffer.length) return;
+  const lines = buffer;
+  buffer = '';
+  logLines = 0;
+  await writeLogToFile(lines);
+}
+
+setInterval(() => flushLog(), 1000 * 5);
+process.on('SIGTERM', () => flushLog());
+
+const LOGFILE = '/usr/log/klaviyo.log';
+
+async function writeLogToFile(log: string) {
+  try {
+    return await fs.appendFile(LOGFILE, log);
+  } catch (err) {
+    console.error('Error writing log to file:', err);
+    await writeLogToFile(log);
+  }
+}
+
+function loggingMw(req, res, next) {
+  const uuid = v4();
+  req.uuid = uuid;
+  buffer +=
+    `klaviyo ${new Date().toISOString()} [${req.uuid}] ${req.method} ${req.url} ${req.ip}\n` +
+    JSON.stringify({
+      body: req.body,
+      query: req.query,
+      params: req.params,
+      headers: req.headers,
+    }) +
+    '\n';
+  if (++logLines === 100) {
+    flushLog();
+  }
+  next();
+}
+
+app.use(loggingMw);
+
+app.use('/reset', (req, res) => {
+  resetRateLimitStore();
+  fs.writeFile(LOGFILE, '');
+  res.send('OK');
+});
+
+app.post('/healthcheck', (req, res) => {
   res.send('OK');
 });
 
 const router = express.Router();
-router.use(express.json());
 
 const rateLimitConfig = {
   quota: 1,
   window: 1,
   params: ['headers.x-tw-klaviyo-account'],
-  match: 'query.additional-fields',
+  match: 'body.additional-fields',
 };
 
 router.use(
   ...createRateLimitMiddlewares('global', [
     { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
     { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
-  ])
+  ]),
 );
 
 router.use(
   ...createRateLimitMiddlewares('additional-fields', [
     rateLimitConfig,
     { ...rateLimitConfig, quota: 10, window: 10 },
-  ])
+  ]),
 );
 
-router.get(
+router.post(
   '/profiles',
   ...createRateLimitMiddlewares('profiles', [
     { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
@@ -39,10 +92,10 @@ router.get(
   ]),
   (req, res) => {
     res.send('OK');
-  }
+  },
 );
 
-router.get(
+router.post(
   '/accounts/:id/info',
   ...createRateLimitMiddlewares('accounts', [
     { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
@@ -50,7 +103,7 @@ router.get(
   ]),
   (req, res) => {
     res.send(req.params.id);
-  }
+  },
 );
 
 app.use('/api', router);

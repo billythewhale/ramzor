@@ -1,10 +1,4 @@
-import type {
-  Limit,
-  Policy,
-  RateLimitsConfig,
-  ZoneDescriber,
-  ZonesConfig,
-} from '../types';
+import { makeKey, Zones, Policy } from '@tw/ramzor';
 
 const limit_sm: Policy = {
   window: 1,
@@ -18,42 +12,29 @@ const limit_md: Policy = {
   description: '2 calls/second',
 };
 
-const base: ZoneDescriber = {
-  provider: 'facebook-ads',
-  description: 'Facebook Ads API',
-};
-
-const zones: ZonesConfig = [
+const config: Zones = [
   {
-    for: {
-      ...base,
-      apiName: 'ads_analytics',
-      description: 'Facebook Ads Analytics API',
-    },
+    key: makeKey('facebook_ads_analytics'),
+    condition: (req: any) => !!req.url?.includes('analytics'),
+    description: 'Facebook Ads Analytics API',
     limits: [
       {
-        limitBy: ['query.accountId', 'path'],
+        limitBy: ['data.accountId', 'url'],
         policies: [limit_sm],
       },
     ],
   },
   {
-    for: {
-      ...base,
-      apiName: 'ads_management',
-      description: 'Facebook Ads Management API',
-    },
+    key: makeKey('ads_management'),
+    condition: (req: any) => !!req.url?.includes('manage'),
+    description: 'Facebook Ads Management API',
     limits: [
       {
-        limitBy: ['body.accountId'],
+        limitBy: ['data.accountId'],
         policies: [limit_md],
       },
     ],
   },
 ];
-
-const config: RateLimitsConfig = {
-  zones,
-};
 
 export default config;
