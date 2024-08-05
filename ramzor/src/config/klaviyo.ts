@@ -25,9 +25,9 @@ const limit_sm: Policy[] = [
     description: '3 calls/second per account',
   },
   {
-    window: 60,
+    window: 30,
     maxCalls: 60,
-    description: '60 calls/minute per account',
+    description: '60 calls/30s per account',
   },
 ];
 
@@ -38,9 +38,9 @@ const limit_md: Policy[] = [
     description: '10 calls/second per account',
   },
   {
-    window: 60,
+    window: 30,
     maxCalls: 150,
-    description: '150 calls/minute per account',
+    description: '150 calls/30s per account',
   },
 ];
 
@@ -51,9 +51,9 @@ const limit_lg: Policy[] = [
     description: '75 calls/second per account',
   },
   {
-    window: 60,
+    window: 30,
     maxCalls: 700,
-    description: '700 calls/minute per account',
+    description: '700 calls/30s per account',
   },
 ];
 
@@ -64,9 +64,9 @@ const limit_xl: Policy[] = [
     description: '350 calls/second per account',
   },
   {
-    window: 60,
+    window: 30,
     maxCalls: 3500,
-    description: '3500 calls/minute per account',
+    description: '3500 calls/30s per account',
   },
 ];
 

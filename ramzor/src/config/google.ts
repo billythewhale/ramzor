@@ -23,9 +23,9 @@ const config: Zones = [
         limitBy: ['tw-ip'],
         policies: [
           {
-            window: 60,
+            window: 30,
             maxCalls: 500,
-            description: '500 calls/min per IP',
+            description: '500 calls/30sec per IP',
           },
         ],
       },

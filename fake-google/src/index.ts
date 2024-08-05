@@ -15,7 +15,7 @@ async function writeLogToFile(log: string) {
 }
 
 function loggingMw(req, res, next) {
-  req.uuid = req.body.requestId || 'n/a';
+  req.uuid = req.headers['x-tw-ramzor'] || 'n/a';
   let msg =
     `facebook ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
       req.url
@@ -50,7 +50,7 @@ app.post('/healthcheck', (req, res) => {
 app.use(
   ...createRateLimitMiddlewares([
     { quota: 1, window: 1, params: ['body.accountId'] },
-    { quota: 500, window: 60, params: ['ip'] },
+    { quota: 500, window: 30, params: ['ip'] },
   ])
 );
 

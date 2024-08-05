@@ -15,7 +15,7 @@ async function writeLogToFile(log: string) {
 }
 
 function loggingMw(req, res, next) {
-  req.uuid = req.body.requestId || 'n/a';
+  req.uuid = req.headers['x-tw-ramzor'] || 'n/a';
   let msg =
     `facebook ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
       req.url
@@ -59,7 +59,7 @@ const rateLimitConfig = {
 router.use(
   ...createRateLimitMiddlewares('global', [
     { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
-    { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
+    { quota: 60, window: 30, params: ['headers.x-tw-klaviyo-account'] },
   ])
 );
 
@@ -74,7 +74,7 @@ router.post(
   '/profiles',
   ...createRateLimitMiddlewares('profiles', [
     { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
-    { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
+    { quota: 60, window: 30, params: ['headers.x-tw-klaviyo-account'] },
   ]),
   (req, res) => {
     res.send('OK');
@@ -85,7 +85,7 @@ router.post(
   '/accounts/:id/info',
   ...createRateLimitMiddlewares('accounts', [
     { quota: 3, window: 1, params: ['headers.x-tw-klaviyo-account'] },
-    { quota: 60, window: 60, params: ['headers.x-tw-klaviyo-account'] },
+    { quota: 60, window: 30, params: ['headers.x-tw-klaviyo-account'] },
   ]),
   (req, res) => {
     res.send(req.params.id);

@@ -12,7 +12,13 @@ import klaviyoConfig from '../config//klaviyo';
 import googleConfig from '../config/google';
 
 import { clearClientLog, log } from './log';
-import { getMetrics, useStoplight, type AxiosRequestConfig } from '@tw/ramzor';
+import {
+  getMetrics,
+  report429,
+  useAbortableStoplight,
+  useStoplightAxiosInstance,
+  type AxiosRequestConfig,
+} from '@tw/ramzor';
 import { makeAxiosReq } from '../utils/makeAxiosReq';
 
 const shops = Array.from(
@@ -59,66 +65,59 @@ async function resetServers() {
 
 async function sendRequest(r: any) {
   log(r);
-  return await axios.request(makeAxiosReq(r) as any);
+  try {
+    return await axios.request(r);
+  } catch (e) {
+    if (e.code === 'ECONNRESET') {
+      return await sendRequest(r);
+    }
+    console.error(e);
+    process.exit(1);
+  }
 }
 
 let done = false;
-const _facebookSender = useStoplight('facebook', facebookConfig, {
-  // debugName: 'facebook',
-});
-const _klaviyoSender = useStoplight('klaviyo', klaviyoConfig, {
-  // debugName: 'klaviyo',
-});
-const _googleSender = useStoplight('google', googleConfig, {
-  // debugName: 'google',
-});
-const googleSender = (req: any) => {
-  const ip = Math.random() < 0.5 ? '123.4.5.6' : '135.7.9.11'; // pretend we're sending from 2 different IPs
-  const r = { ...req, 'tw-ip': ip };
-  return _googleSender(r, async () => await sendRequest(r));
-};
+let progressInterval: any;
 
-const klaviyoSender = (req: any) => {
-  return _klaviyoSender(req, async () => await sendRequest(req));
-};
+let tryToAbort = 0;
+let abortedReceived = 0;
+let resRecieved = 0;
 
-const facebookSender = (req: any) => {
-  return _facebookSender(req, async () => await sendRequest(req));
-};
-
-export async function runClient() {
+export async function runClientWithAxiosInstance() {
   console.log('Reset servers');
   await resetServers();
   console.log('Clear client log');
   clearClientLog();
+  const facebookClient = useStoplightAxiosInstance('facebook', facebookConfig);
+  const googleClient = useStoplightAxiosInstance('google', googleConfig);
+  const klaviyoClient = useStoplightAxiosInstance('klaviyo', klaviyoConfig);
   const start = process.hrtime.bigint();
   const promises = Promise.all(
     [
-      [facebookReqs, facebookSender],
-      [googleReqs, googleSender],
-      [klaviyoReqs, klaviyoSender],
+      [facebookReqs, facebookClient],
+      [googleReqs, googleClient],
+      [klaviyoReqs, klaviyoClient],
     ]
-      .map(async ([requests, sender]: [AxiosRequestConfig[], any]) => {
+      .map(async ([requests, client]: [AxiosRequestConfig[], any]) => {
         return await Promise.all(
           requests.map(
-            (r: any) =>
-              new Promise((resolve) =>
+            (r: any, i: number) =>
+              new Promise((resolve, reject) =>
                 setTimeout(
-                  () =>
-                    resolve(
-                      sender(r)
-                        .then(async ({ abort, promise }) => {
-                          const { result } = await promise;
-                          return result;
-                        })
-                        .catch((e) => {
-                          console.log({
-                            status: e.response?.status,
-                            message: e.message,
-                            request: r,
-                          });
-                        })
-                    ),
+                  async () => {
+                    try {
+                      const response = await client.request(makeAxiosReq(r));
+                      resRecieved++;
+                      resolve(response.data);
+                    } catch (e) {
+                      reject(e);
+                      console.log({
+                        status: e.response?.status,
+                        message: e.message,
+                        request: r,
+                      });
+                    }
+                  },
                   Math.floor(Math.random() * 200)
                 )
               )
@@ -127,7 +126,7 @@ export async function runClient() {
       })
       .flat()
   );
-  logProgress();
+  progressInterval = setInterval(logProgress, 1000);
   const results = (await promises).flat();
   done = true;
   const end = process.hrtime.bigint();
@@ -144,13 +143,116 @@ export async function runClient() {
   }
 }
 
-async function logProgress() {
-  await new Promise((r) => setTimeout(r, 1000));
-  console.log(getMetrics());
-  if (!done) {
-    logProgress();
+export async function runClientWithAbortable() {
+  const _facebookSender = useAbortableStoplight('facebook', facebookConfig, {
+    // debugName: 'facebook',
+  });
+  const _klaviyoSender = useAbortableStoplight('klaviyo', klaviyoConfig, {
+    // debugName: 'klaviyo',
+  });
+  const _googleSender = useAbortableStoplight('google', googleConfig, {
+    // debugName: 'google',
+  });
+  const googleSender = (req: any) => {
+    const ip = Math.random() < 0.5 ? '123.4.5.6' : '135.7.9.11'; // pretend we're sending from 2 different IPs
+    const r = makeAxiosReq({ ...req, 'tw-ip': ip });
+    return _googleSender(r, async () => await sendRequest(r));
+  };
+
+  const klaviyoSender = (req: any) => {
+    const r = makeAxiosReq(req);
+    return _klaviyoSender(r, async () => await sendRequest(r));
+  };
+
+  const facebookSender = (req: any) => {
+    const r = makeAxiosReq(req);
+    return _facebookSender(r, async () => await sendRequest(r));
+  };
+
+  console.log('Reset servers');
+  await resetServers();
+  console.log('Clear client log');
+  clearClientLog();
+  const start = process.hrtime.bigint();
+  const promises = Promise.all(
+    [
+      [facebookReqs, facebookSender],
+      [googleReqs, googleSender],
+      [klaviyoReqs, klaviyoSender],
+    ]
+      .map(async ([requests, sender]: [AxiosRequestConfig[], any]) => {
+        return await Promise.all(
+          requests.map(
+            (r: any) =>
+              new Promise((resolve, reject) =>
+                setTimeout(
+                  async () => {
+                    const { abort, promise } = sender(r);
+                    let timeout: any;
+                    try {
+                      timeout = setTimeout(
+                        () => {
+                          tryToAbort++;
+                          abort();
+                        },
+                        Math.random() * 1000 * 60 * 5
+                      );
+                      const { aborted, result, error } = await promise;
+                      clearTimeout(timeout);
+                      if (aborted) {
+                        abortedReceived++;
+                        resolve('ok');
+                        return;
+                      }
+                      if (error) {
+                        reject(error);
+                        return;
+                      }
+                      resRecieved++;
+                      resolve(result);
+                    } catch (e) {
+                      if (!e.reponse) {
+                        abort();
+                      }
+                      console.log({
+                        status: e.response?.status,
+                        message: e.message,
+                        request: r,
+                      });
+                    }
+                  },
+                  Math.floor(Math.random() * 200)
+                )
+              )
+          )
+        );
+      })
+      .flat()
+  );
+  progressInterval = setInterval(logProgress, 1000);
+  const results = (await promises).flat();
+  done = true;
+  const end = process.hrtime.bigint();
+  const diff = Number(end - start) / 1e6;
+  const four20nines = results.filter((r: any) => r.status === 429).length;
+  const fiveHundos = results.filter((r: any) => r.status >= 500).length;
+  if (four20nines || fiveHundos) {
+    console.error('some requests failed!', diff, 'ms', {
+      four20nines,
+      fiveHundos,
+    });
   } else {
-    process.exit(0);
+    console.log('all requests succeeded!', diff, 'ms');
+  }
+}
+
+function logProgress() {
+  console.log({
+    stoplight: { ...getMetrics() },
+    local: { resRecieved, abortedReceived, tryToAbort },
+  });
+  if (done) {
+    clearInterval(progressInterval);
   }
 }
 
@@ -159,9 +261,7 @@ function getTestRequests(shopData: any): AxiosRequestConfig[][] {
     getFacebookReqs(shopData),
     getGoogleReqs(shopData),
     getKlaviyoReqs(shopData),
-  ].map((provider) =>
-    provider.map((req) => ({ ...req, body: { ...req.body, requestId: v4() } }))
-  );
+  ];
 }
 
 function getFacebookReqs(shopData: any): any[] {
@@ -287,7 +387,7 @@ function getKlaviyoReqs(shopData: any): any[] {
 }
 
 if (require.main === module) {
-  runClient().catch((err) => {
+  runClientWithAxiosInstance().catch((err) => {
     process.stdout.write('\n');
     console.error(err);
     process.exit(1);

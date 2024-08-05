@@ -12,7 +12,7 @@ export function clearClientLog() {
 }
 
 export function log(req: any) {
-  const uuid = req.body.requestId || 'n/a';
+  const uuid = req.headers?.['x-tw-ramzor'] || 'n/a';
   let msg =
     `${new Date().toISOString()} [${uuid}] ${req.method} ${req.url} ${
       req.ip

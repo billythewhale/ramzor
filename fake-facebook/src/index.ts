@@ -15,7 +15,7 @@ async function writeLogToFile(log: string) {
 }
 
 function loggingMw(req, res, next) {
-  req.uuid = req.body.requestId || 'n/a';
+  req.uuid = req.headers['x-tw-ramzor'] || 'n/a';
   let msg =
     `facebook ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
       req.url
