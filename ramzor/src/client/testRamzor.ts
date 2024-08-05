@@ -11,7 +11,7 @@ import facebookConfig from '../config/facebook';
 import klaviyoConfig from '../config//klaviyo';
 import googleConfig from '../config/google';
 
-import { writeLogfile } from './log';
+import { clearClientLog, log } from './log';
 import { getMetrics, useStoplight, type AxiosRequestConfig } from '@tw/ramzor';
 import { makeAxiosReq } from '../utils/makeAxiosReq';
 
@@ -45,7 +45,7 @@ const [facebookReqs, googleReqs, klaviyoReqs] = shopDocs.reduce(
 );
 
 async function sendRequest(r: any) {
-  writeLogfile(r);
+  log(r);
   return await axios.request(makeAxiosReq(r) as any);
 }
 
@@ -75,7 +75,7 @@ const facebookSender = async (req: any) => {
 
 export async function runClient() {
   const start = process.hrtime.bigint();
-  await fs.writeFile('/Users/billy/ramzor/ramzor/src/client/logfile.log', '');
+  clearClientLog();
   const promises = Promise.all(
     [
       [facebookReqs, facebookSender],

@@ -7,7 +7,7 @@ process.on('beforeExit', () => {
   stream.end();
 });
 
-export function clearLog() {
+export function clearClientLog() {
   fs.writeFileSync(LOGFILE, '');
 }
 
