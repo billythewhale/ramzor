@@ -1,60 +1,45 @@
 import express from 'express';
 import { v4 } from 'uuid';
 import { createRateLimitMiddlewares, resetRateLimitStore } from './rateLimiter';
-import { promises as fs } from 'fs';
+import * as fs from 'fs';
 
 const app = express();
 app.use(express.json);
 
-let buffer = '';
-let logLines = 0;
-
-async function flushLog() {
-  if (!buffer.length) return;
-  const lines = buffer;
-  buffer = '';
-  logLines = 0;
-  await writeLogToFile(lines);
-}
-
-setInterval(() => flushLog(), 1000 * 5);
-process.on('SIGTERM', () => flushLog());
-
-const LOGFILE = '/usr/log/klaviyo.log';
+const LOGFILE = '/usr/log/facebook.log';
+let logStream = fs.createWriteStream(LOGFILE, { flags: 'a' });
+process.on('exit', () => logStream.end());
 
 async function writeLogToFile(log: string) {
-  try {
-    return await fs.appendFile(LOGFILE, log);
-  } catch (err) {
-    console.error('Error writing log to file:', err);
-    await writeLogToFile(log);
-  }
+  return logStream.write(log);
 }
 
 function loggingMw(req, res, next) {
   req.uuid = req.body.requestId || 'n/a';
-  buffer +=
-    `klaviyo ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
+  let msg =
+    `facebook ${new Date().toISOString()} [${req.uuid}] ${req.method} ${
       req.url
     } ${req.ip}\n` +
     JSON.stringify({
       body: req.body,
-      query: req.query,
       params: req.params,
       headers: req.headers,
     }) +
     '\n';
-  if (++logLines === 100) {
-    flushLog();
-  }
+  writeLogToFile(msg);
   next();
 }
 
 app.use(loggingMw);
 
 app.use('/reset', (req, res) => {
+  console.log('Reset server');
   resetRateLimitStore();
-  fs.writeFile(LOGFILE, '');
+  if (logStream) {
+    logStream.end();
+  }
+  fs.writeFileSync(LOGFILE, '');
+  logStream = fs.createWriteStream(LOGFILE, { flags: 'a' });
   res.send('OK');
 });
 

@@ -11,13 +11,13 @@ services:
       - /Users/billy/ramzor/ramzor/runlogs:/usr/log
     container_name: fake-facebook
     environment:
-      SERVER_PORT: 3001
+      SERVER_PORT: 3031
       DEBUG_PORT: 9229
     ports:
-      - '3001:3001'
+      - '3031:3031'
       - '9229:9229'
     expose:
-      - '3001'
+      - '3031'
       - '9229'
     command: npm run dev
   fake-google:
@@ -31,13 +31,13 @@ services:
       - /Users/billy/ramzor/ramzor/runlogs:/usr/log
     container_name: fake-google
     environment:
-      SERVER_PORT: 3002
+      SERVER_PORT: 3032
       DEBUG_PORT: 9230
     ports:
-      - '3002:3002'
+      - '3032:3032'
       - '9230:9230'
     expose:
-      - '3002'
+      - '3032'
       - '9230'
     command: npm run dev
   fake-klaviyo:
@@ -51,13 +51,13 @@ services:
       - /Users/billy/ramzor/ramzor/runlogs:/usr/log
     container_name: fake-klaviyo
     environment:
-      SERVER_PORT: 3004
+      SERVER_PORT: 3034
       DEBUG_PORT: 9231
     ports:
-      - '3004:3004'
+      - '3034:3034'
       - '9231:9231'
     expose:
-      - '3004'
+      - '3034'
       - '9231'
     command: npm run dev
   redis:

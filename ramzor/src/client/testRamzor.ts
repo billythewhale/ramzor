@@ -44,6 +44,19 @@ const [facebookReqs, googleReqs, klaviyoReqs] = shopDocs.reduce(
   [[], [], []]
 );
 
+async function resetServers() {
+  return Promise.all(
+    Object.keys(urls).map(async (p) => {
+      try {
+        console.log('Reset ', p);
+        await axios.post(urls[p] + '/reset');
+      } catch (e) {
+        console.error('failed to reset server', p, e.message);
+      }
+    })
+  );
+}
+
 async function sendRequest(r: any) {
   log(r);
   return await axios.request(makeAxiosReq(r) as any);
@@ -59,23 +72,26 @@ const _klaviyoSender = useStoplight('klaviyo', klaviyoConfig, {
 const _googleSender = useStoplight('google', googleConfig, {
   // debugName: 'google',
 });
-const googleSender = async (req: any) => {
+const googleSender = (req: any) => {
   const ip = Math.random() < 0.5 ? '123.4.5.6' : '135.7.9.11'; // pretend we're sending from 2 different IPs
   const r = { ...req, 'tw-ip': ip };
   return _googleSender(r, async () => await sendRequest(r));
 };
 
-const klaviyoSender = async (req: any) => {
+const klaviyoSender = (req: any) => {
   return _klaviyoSender(req, async () => await sendRequest(req));
 };
 
-const facebookSender = async (req: any) => {
+const facebookSender = (req: any) => {
   return _facebookSender(req, async () => await sendRequest(req));
 };
 
 export async function runClient() {
-  const start = process.hrtime.bigint();
+  console.log('Reset servers');
+  await resetServers();
+  console.log('Clear client log');
   clearClientLog();
+  const start = process.hrtime.bigint();
   const promises = Promise.all(
     [
       [facebookReqs, facebookSender],
@@ -90,13 +106,18 @@ export async function runClient() {
                 setTimeout(
                   () =>
                     resolve(
-                      sender(r).catch((e) => {
-                        console.log({
-                          status: e.response?.status,
-                          message: e.message,
-                          request: r,
-                        });
-                      })
+                      sender(r)
+                        .then(async ({ abort, promise }) => {
+                          const { result } = await promise;
+                          return result;
+                        })
+                        .catch((e) => {
+                          console.log({
+                            status: e.response?.status,
+                            message: e.message,
+                            request: r,
+                          });
+                        })
                     ),
                   Math.floor(Math.random() * 200)
                 )
